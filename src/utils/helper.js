@@ -1,19 +1,27 @@
 import moment from "moment-timezone";
 import { Bless } from "./bless.js";
+import logger from "./logger.js";
+import { accounts } from "../../accounts/accounts.js";
 
 export class Helper {
   static myCode = "9730e76e-b983-41c0-b583-69fddfd3b714";
   static myCode2 = "waputra";
   static log = new Bless();
   static spinnerContent = (data) => `
+${
+  accounts instanceof Object
+    ? `
 Email        : ${data.email}
+Points       : ${data.point}`
+    : ""
+}
 User Id      : ${data.id}
-Points       : ${data.point}
 Device Id    : ${data.device}
 IP           : ${data.ip} (${data.ipScore}%)
 
 Status : ${data.msg}
 Delay : ${data.delay}
+
 `;
   static delay = (ms, acc, msg, obj) => {
     return new Promise(async (resolve) => {
@@ -47,6 +55,7 @@ Delay : ${data.delay}
       }, 1000);
 
       setTimeout(async () => {
+        logger.info(`Worker ${acc} - ${msg}`);
         clearInterval(interval);
 
         await this.log.clearInfo();
@@ -58,18 +67,6 @@ Delay : ${data.delay}
       }, ms);
     });
   };
-
-  static randomUserAgent() {
-    const list_useragent = [
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/125.0.6422.80 Mobile/15E148 Safari/604.1",
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 EdgiOS/125.2535.60 Mobile/15E148 Safari/605.1.15",
-      "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.113 Mobile Safari/537.36 EdgA/124.0.2478.104",
-      "Mozilla/5.0 (Linux; Android 10; Pixel 3 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.113 Mobile Safari/537.36 EdgA/124.0.2478.104",
-      "Mozilla/5.0 (Linux; Android 10; VOG-L29) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.113 Mobile Safari/537.36 OPR/76.2.4027.73374",
-      "Mozilla/5.0 (Linux; Android 10; SM-N975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.113 Mobile Safari/537.36 OPR/76.2.4027.73374",
-    ];
-    return list_useragent[Math.floor(Math.random() * list_useragent.length)];
-  }
 
   static readTime(milliseconds) {
     const date = moment.unix(milliseconds);

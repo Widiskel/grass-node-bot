@@ -1,5 +1,4 @@
 import blessed from "blessed";
-import logger from "./logger.js";
 import Core from "../core/core.js";
 import { Helper } from "./helper.js";
 import { proxyList } from "../../config/proxy_list.js";
@@ -150,19 +149,24 @@ export class Bless {
     this.screen.render();
   }
 
-  async log(msg = "", acc = "", core = new Core(), delay) {
+  log(msg = "", acc = "", core = new Core(), delay) {
     if (
       delay === undefined ||
       delay == "Delaying for 0 Hours 0 Minutes 0 Seconds"
     ) {
-      logger.info(`Worker ${acc} - ${msg}`);
       delay = "-";
     }
     let logContent;
 
     const email = accounts.email ?? "-";
     const user = core.user ?? {};
-    const id = user.userId ?? "-";
+
+    let id;
+    if (acc instanceof Object) {
+      id = user.userId ?? "-";
+    } else {
+      id = accounts;
+    }
     const point = core.point ?? "-";
     const device = core.deviceId ?? "-";
     const ip = core.IP;

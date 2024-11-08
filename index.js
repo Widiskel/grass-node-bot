@@ -10,12 +10,13 @@ async function operation(acc, worker, proxy) {
 
   try {
     await core.initDevice();
-    await core.login();
-    await core.getUser();
-    // await Helper.refCheck(core.user.referredBy, core.user.userId);
-    await core.getPoint(true);
-    await core.ipChecker();
-    await core.getActiveNetwork();
+    if (acc instanceof Object) {
+      await core.login();
+      await core.getUser();
+      await core.getPoint(true);
+      await core.ipChecker();
+      await core.getActiveNetwork();
+    }
     await core.connectWebSocket();
   } catch (error) {
     let account = acc;
@@ -43,8 +44,13 @@ async function startBot() {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info(`BOT STARTED`);
-      if (!accounts.email && !accounts.password)
-        throw Error("Please Set Up your account first on accounts.js file");
+      if (accounts instanceof Object) {
+        if (!accounts.email && !accounts.password)
+          throw Error("Please Set Up your account first on accounts.js file");
+      } else {
+        if (accounts == undefined || accounts == "")
+          throw Error("Please Set Up your User id first on accounts.js file");
+      }
 
       if (proxyList.length == 0)
         throw Error(

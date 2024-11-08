@@ -1,14 +1,14 @@
 import { HttpsProxyAgent } from "https-proxy-agent";
 import fetch from "node-fetch";
-import randUserAgent from "rand-user-agent";
 import logger from "../../utils/logger.js";
 import { SocksProxyAgent } from "socks-proxy-agent";
+import UserAgent from "user-agents";
 
 export class API {
   constructor(url, proxy) {
     this.url = url;
     this.proxy = proxy;
-    this.ua = randUserAgent("desktop");
+    this.ua = new UserAgent({ deviceCategory: "desktop" }).data.userAgent;
     this.IP = "-";
   }
 
@@ -45,6 +45,7 @@ export class API {
   }
 
   async ipChecker() {
+    logger.info("Checking IP");
     try {
       const options = {
         headers: {
@@ -75,6 +76,7 @@ export class API {
       console.error("Error fetching IP data:", error);
       throw error;
     }
+    logger.info("IP Checked");
   }
 
   async fetch(

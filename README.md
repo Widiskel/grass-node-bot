@@ -180,18 +180,6 @@ if any error happen or bot not runnnig check on log file
 cat log/app.log
 ```
 
-if any error happen agains rand_user_agent package,
-open file `user-agents.json` or open this link https://raw.githubusercontent.com/Widiskel/grass-node-bot/refs/heads/master/user-agents.json
-
-and copy content to
-`node_modules/rand-user-agent/data/user-agents.json`
-
-open it, delete `{}` using `ctrl + k` and paste
-```
-nano node_modules/rand-user-agent/data/user-agents.json
-```
-save with `ctrl + ` and press `Y` and `Enter`.
-
 LFG
 
 ## CONTRIBUTE

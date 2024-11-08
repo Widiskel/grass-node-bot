@@ -18,8 +18,18 @@ export default class Core extends API {
     this.point = 0;
     this.pingCount = 0;
     this.pongCount = 0;
-    this.pingInterval = 0;
+    this.pingInterval = null;
+    this.pingTimeout = null;
     this.worker = worker;
+  }
+
+  uuidv4() {
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
+      (
+        c ^
+        (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
+      ).toString(16)
+    );
   }
 
   async login() {
@@ -66,6 +76,7 @@ export default class Core extends API {
     }
     logger.info(`Use Session ${JSON.stringify(session)}`);
     this.deviceId = session.device_id;
+    await Helper.delay(1000, this.worker, `Worker Initialized...`, this);
   }
   async getUser() {
     await Helper.delay(1000, this.worker, `Getting User Information...`, this);
@@ -132,94 +143,128 @@ export default class Core extends API {
   }
 
   async connectWebSocket() {
-    await this.ipChecker();
-    let agent;
-    if (this.proxy) {
-      if (this.proxy.startsWith(`http`))
-        agent = new HttpsProxyAgent(this.proxy);
-      if (this.proxy.startsWith(`socks`))
-        agent = new SocksProxyAgent(this.proxy);
+    try {
+      logger.info("INIT WSS");
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        await Helper.delay(
+          0,
+          this.worker,
+          "WebSocket already connected.",
+          this
+        );
+        return;
+      }
+      logger.info("No existing WSS running");
+
+      await this.ipChecker().catch((err) => {
+        logger.info("FAILED TO GET IP");
+      });
+      await Helper.delay(0, this.worker, "Connecting to webscoket.", this);
+      let agent;
+      if (this.proxy) {
+        if (this.proxy.startsWith(`http`))
+          agent = new HttpsProxyAgent(this.proxy);
+        if (this.proxy.startsWith(`socks`))
+          agent = new SocksProxyAgent(this.proxy);
+      }
+      this.socketURL = `wss://proxy2.wynd.network:4444/`;
+      this.socket = new WebSocket(this.socketURL, {
+        agent: agent,
+        headers: {
+          "User-Agent": this.ua,
+          connection: "Upgrade",
+          host: "proxy2.wynd.network:4444",
+          origin: "chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi",
+          "sec-websocket-extensions":
+            "permessage-deflate; client_max_window_bits",
+          "sec-websocket-version": "13",
+        },
+      });
+
+      this.socket.onopen = async () => {
+        await Helper.delay(
+          0,
+          this.worker,
+          "Connected to websocket, Websocket connection oppened",
+          this
+        );
+        this.wssReconnectAttempts = 0;
+      };
+
+      this.socket.onmessage = async (message) => {
+        const data = JSON.parse(message.data);
+        const action = data.action;
+        await Helper.delay(
+          0,
+          this.worker,
+          `Received message on Worker ${this.worker}: ${JSON.stringify(data)}`,
+          this
+        );
+
+        switch (action) {
+          case "AUTH":
+            await this.handleAuth(data);
+            break;
+
+          case "PONG":
+            await Helper.delay(
+              0,
+              this.worker,
+              `Received ${action} Action`,
+              this
+            );
+            await this.sendPong(data);
+            break;
+
+          default:
+            await Helper.delay(
+              500,
+              this.worker,
+              `Received unknown action: ${action}`,
+              this
+            );
+            break;
+        }
+      };
+
+      this.socket.onerror = async (error) => {
+        await Helper.delay(
+          0,
+          this.worker,
+          `WebSocket error: ${JSON.stringify(error)}`,
+          this
+        );
+      };
+
+      this.socket.onclose = async (event) => {
+        try {
+          if (!event.wasClean) {
+            await Helper.delay(
+              3000,
+              this.worker,
+              `WebSocket closed unexpectedly: ${event.code} - ${event.reason}`,
+              this
+            );
+          } else {
+            await Helper.delay(
+              3000,
+              this.worker,
+              `WebSocket Connection Closed Cleanly`,
+              this
+            );
+          }
+
+          await this.stopPing();
+          await this.reconnectWebSocket().catch((err) => {
+            throw err;
+          });
+        } catch (error) {
+          throw error;
+        }
+      };
+    } catch (error) {
+      throw error;
     }
-    this.socketURL = `wss://proxy2.wynd.network:4650/`;
-    this.socket = new WebSocket(this.socketURL, {
-      agent: agent,
-      headers: {
-        "User-Agent": this.ua,
-        connection: "Upgrade",
-        host: "proxy2.wynd.network:4650",
-        origin: "chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi",
-        "sec-websocket-extensions":
-          "permessage-deflate; client_max_window_bits",
-        "sec-websocket-version": "13",
-      },
-    });
-
-    this.socket.onopen = async () => {
-      await Helper.delay(
-        500,
-        this.worker,
-        "WebSocket connection opened.",
-        this
-      );
-      this.wssReconnectAttempts = 0;
-    };
-
-    this.socket.onmessage = async (message) => {
-      const data = JSON.parse(message.data);
-      const action = data.action;
-      await Helper.delay(
-        500,
-        this.worker,
-        `Received message on Worker ${this.worker + 1}: ${JSON.stringify(
-          data
-        )}`,
-        this
-      );
-
-      switch (action) {
-        case "AUTH":
-          await this.handleAuth(data);
-          break;
-
-        case "PONG":
-          await Helper.delay(0, this.worker, `Received ${action} Action`, this);
-          await this.sendPong(data);
-          break;
-
-        default:
-          await Helper.delay(
-            500,
-            this.worker,
-            `Received unknown action: ${action}`,
-            this
-          );
-          break;
-      }
-    };
-
-    this.socket.onerror = async (error) => {
-      await Helper.delay(500, this.worker, `WebSocket error: ${error}`, this);
-    };
-
-    this.socket.onclose = async (event) => {
-      if (event.wasClean) {
-        await Helper.delay(
-          500,
-          this.worker,
-          "WebSocket connection closed cleanly.",
-          this
-        );
-      } else {
-        await Helper.delay(
-          500,
-          this.worker,
-          "WebSocket connection closed unexpectedly.",
-          this
-        );
-      }
-      await this.stopPing();
-      await this.reconnectWebSocket();
-    };
   }
 
   async reconnectWebSocket() {
@@ -231,7 +276,7 @@ export default class Core extends API {
         this.worker,
         `Attempting to reconnect (#${this.wssReconnectAttempts})...`,
         this
-      ).then(() => this.connectWebSocket());
+      ).then(async () => await this.connectWebSocket());
     } else {
       const msg =
         "Max reconnect attempts reached. Could not reconnect to WebSocket.";
@@ -246,7 +291,7 @@ export default class Core extends API {
       origin_action: "AUTH",
       result: {
         browser_id: this.deviceId,
-        user_id: this.user.userId,
+        user_id: this.acc instanceof Object ? this.user.userId : this.acc,
         user_agent: this.ua,
         timestamp: Date.now(),
         device_type: "extension",
@@ -254,26 +299,22 @@ export default class Core extends API {
         extension_id: "lkbnfiajjmbhnfledhphioinpickokdi",
       },
     });
+
     logger.info(authRes);
-    await Helper.delay(
-      500,
-      this.worker,
-      `Sending ${data.action} Response`,
-      this
-    );
+    await Helper.delay(0, this.worker, `Sending ${data.action} Response`, this);
     this.socket.send(authRes);
     this.startPing();
     await Helper.delay(
-      120000,
+      0,
       this.worker,
-      `Auth Response Sended, Delaying 2 min before sending PING`,
+      `Auth Response Sended, Delaying 1 min before sending PING`,
       this
     );
   }
 
   async sendPing() {
     const data = JSON.stringify({
-      id: uuidv4(),
+      id: this.uuidv4(),
       version: "1.0.0",
       action: "PING",
       data: {},
@@ -282,21 +323,38 @@ export default class Core extends API {
     this.pingCount = this.pingCount + 1;
     await Helper.delay(0, this.worker, `Sending PING ${this.pingCount}`, this);
     this.socket.send(data);
-    await this.getActiveNetwork();
+    if (this.acc instanceof Object) {
+      await this.getActiveNetwork();
+    }
     await Helper.delay(0, this.worker, `PING ${this.pingCount} Sended`, this);
   }
 
   async startPing() {
     if (!this.pingInterval) {
-      this.pingInterval = setInterval(async () => {
+      this.pingTimeout = setTimeout(async () => {
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          await Helper.delay(
+            0,
+            this.worker,
+            `WebSocket Connection ${this.socket.readyState} Sending PING`,
+            this
+          );
           await this.sendPing();
+          this.pingInterval = setInterval(async () => {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+              await this.sendPing();
+            }
+          }, 120000);
         }
-      }, 120000);
+      }, 60000);
     }
   }
 
   async stopPing() {
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = null;
+    }
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;

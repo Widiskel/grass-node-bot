@@ -28,12 +28,12 @@
     "input": "^1.0.1",
     "moment-timezone": "^0.5.45",
     "node-fetch": "^3.3.2",
-    "rand-user-agent": "^2.0.81",
     "socks-proxy-agent": "^8.0.4",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "user-agents": "^1.1.351",
     "uuid": "^11.0.2",
     "winston": "^3.13.0",
-    "ws": "^8.18.0",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
+    "ws": "^8.18.0"
   }
 }
