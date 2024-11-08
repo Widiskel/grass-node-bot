@@ -268,20 +268,24 @@ export default class Core extends API {
   }
 
   async reconnectWebSocket() {
-    if (this.wssReconnectAttempts < this.maxwssReconnectAttempts) {
-      this.wssReconnectAttempts += 1;
-      const delay = Math.min(5000, 1000 * this.wssReconnectAttempts);
-      Helper.delay(
-        delay,
-        this.worker,
-        `Attempting to reconnect (#${this.wssReconnectAttempts})...`,
-        this
-      ).then(async () => await this.connectWebSocket());
-    } else {
-      const msg =
-        "Max reconnect attempts reached. Could not reconnect to WebSocket.";
-      Helper.delay(1000, this.worker, msg, this);
-      throw Error(msg);
+    try {
+      if (this.wssReconnectAttempts < this.maxwssReconnectAttempts) {
+        this.wssReconnectAttempts += 1;
+        const delay = Math.min(5000, 1000 * this.wssReconnectAttempts);
+        Helper.delay(
+          delay,
+          this.worker,
+          `Attempting to reconnect (#${this.wssReconnectAttempts})...`,
+          this
+        ).then(async () => await this.connectWebSocket());
+      } else {
+        const msg =
+          "Max reconnect attempts reached. Could not reconnect to WebSocket.";
+        Helper.delay(1000, this.worker, msg, this);
+        throw Error(msg);
+      }
+    } catch (error) {
+      throw error;
     }
   }
 
