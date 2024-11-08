@@ -44,6 +44,7 @@ async function startBot() {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info(`BOT STARTED`);
+
       if (accounts instanceof Object) {
         if (!accounts.email && !accounts.password)
           throw Error("Please Set Up your account first on accounts.js file");

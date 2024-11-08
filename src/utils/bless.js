@@ -160,9 +160,9 @@ export class Bless {
 
     const email = accounts.email ?? "-";
     const user = core.user ?? {};
-
     let id;
-    if (acc instanceof Object) {
+
+    if (accounts instanceof Object == true) {
       id = user.userId ?? "-";
     } else {
       id = accounts;
