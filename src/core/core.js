@@ -292,7 +292,7 @@ export default class Core extends API {
             });
         } else {
           const msg =
-            "Max reconnect attempts reached. Could not reconnect to WebSocket.";
+            "Max reconnect attempts reached. Could not reconnect to WebSocket, Posible proxy problem.";
           await Helper.delay(1000, this.worker, msg, this);
           reject(msg);
         }
