@@ -346,7 +346,7 @@ export default class Core extends API {
     this.pingCount = this.pingCount + 1;
     await Helper.delay(0, this.worker, `Sending PING ${this.pingCount}`, this);
     this.socket.send(data);
-    if (this.acc instanceof Object) {
+    if (this.acc instanceof Object && !this.network) {
       await this.getActiveNetwork();
     }
     await Helper.delay(0, this.worker, `PING ${this.pingCount} Sended`, this);
