@@ -17,7 +17,9 @@ async function operation(acc, worker, proxy) {
       await core.ipChecker();
       await core.getActiveNetwork();
     }
-    await core.connectWebSocket();
+    await core.connectWebSocket().catch((err) => {
+      throw err;
+    });
   } catch (error) {
     let account = acc;
     if (error.message) {
