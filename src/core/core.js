@@ -143,169 +143,139 @@ export default class Core extends API {
   }
 
   async connectWebSocket() {
-    return new Promise(async (resolve, reject) => {
-      try {
-        logger.info("INIT WSS");
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-          await Helper.delay(
-            0,
-            this.worker,
-            "WebSocket already connected.",
-            this
-          );
-          return;
-        }
-        logger.info("No existing WSS running");
-
-        await this.ipChecker().catch((err) => {
-          logger.info("FAILED TO GET IP");
-        });
-        await Helper.delay(0, this.worker, "Connecting to websocket.", this);
-        let agent;
-        if (this.proxy) {
-          if (this.proxy.startsWith(`http`))
-            agent = new HttpsProxyAgent(this.proxy);
-          if (this.proxy.startsWith(`socks`))
-            agent = new SocksProxyAgent(this.proxy);
-        }
-        this.socketURL = `wss://proxy2.wynd.network:4444/`;
-        this.socket = new WebSocket(this.socketURL, {
-          agent: agent,
-          headers: {
-            "User-Agent": this.ua,
-            connection: "Upgrade",
-            host: "proxy2.wynd.network:4444",
-            origin: "chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi",
-            "sec-websocket-extensions":
-              "permessage-deflate; client_max_window_bits",
-            "sec-websocket-version": "13",
-          },
-        });
-
-        this.socket.onopen = async () => {
-          await Helper.delay(
-            0,
-            this.worker,
-            "Connected to websocket, Websocket connection opened",
-            this
-          );
-          this.wssReconnectAttempts = 0;
-        };
-
-        this.socket.onmessage = async (message) => {
-          const data = JSON.parse(message.data);
-          const action = data.action;
-          await Helper.delay(
-            0,
-            this.worker,
-            `Received message on Worker ${this.worker}: ${JSON.stringify(
-              data
-            )}`,
-            this
-          );
-
-          switch (action) {
-            case "AUTH":
-              await this.handleAuth(data);
-              break;
-            case "PONG":
-              await Helper.delay(
-                0,
-                this.worker,
-                `Received ${action} Action`,
-                this
-              );
-              await this.sendPong(data);
-              break;
-            default:
-              await Helper.delay(
-                500,
-                this.worker,
-                `Received unknown action: ${action}`,
-                this
-              );
-              break;
-          }
-        };
-
-        this.socket.onerror = async (error) => {
-          await Helper.delay(
-            0,
-            this.worker,
-            `WebSocket error: ${JSON.stringify(error)}`,
-            this
-          );
-        };
-
-        this.socket.onclose = async (event) => {
-          try {
-            if (!event.wasClean) {
-              await Helper.delay(
-                3000,
-                this.worker,
-                `WebSocket closed unexpectedly: ${event.code} - ${event.reason}`,
-                this
-              );
-            } else {
-              await Helper.delay(
-                3000,
-                this.worker,
-                `WebSocket Connection Closed Cleanly`,
-                this
-              );
-            }
-
-            await this.stopPing();
-            await this.reconnectWebSocket();
-          } catch (error) {
-            await Helper.delay(
-              0,
-              this.worker,
-              `Reconnect failed with error: ${error.message}`,
-              this
-            );
-            reject(error);
-          }
-        };
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
-  async reconnectWebSocket() {
-    return new Promise(async (resolve, reject) => {
-      try {
-        if (this.wssReconnectAttempts < this.maxwssReconnectAttempts) {
-          this.wssReconnectAttempts += 1;
-          const delay = Math.min(5000, 1000 * this.wssReconnectAttempts);
-          await Helper.delay(
-            delay,
-            this.worker,
-            `Attempting to reconnect (#${this.wssReconnectAttempts})...`,
-            this
-          );
-          await this.connectWebSocket()
-            .then(resolve)
-            .catch((err) => {
-              reject(err);
-            });
-        } else {
-          const msg =
-            "Max reconnect attempts reached. Could not reconnect to WebSocket, Posible proxy problem.";
-          await Helper.delay(1000, this.worker, msg, this);
-          reject(msg);
-        }
-      } catch (error) {
+    try {
+      logger.info("INIT WSS");
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
         await Helper.delay(
           0,
           this.worker,
-          `Reconnect failed permanently: ${error.message}`,
+          "WebSocket already connected.",
           this
         );
-        reject(error);
+        return;
       }
-    });
+      logger.info("No existing WSS running");
+
+      await this.ipChecker().catch((err) => {
+        logger.info("FAILED TO GET IP");
+      });
+      await Helper.delay(0, this.worker, "Connecting to websocket.", this);
+      let agent;
+      if (this.proxy) {
+        if (this.proxy.startsWith(`http`))
+          agent = new HttpsProxyAgent(this.proxy);
+        if (this.proxy.startsWith(`socks`))
+          agent = new SocksProxyAgent(this.proxy);
+      }
+      this.socketURL = `wss://proxy2.wynd.network:4444/`;
+      this.socket = new WebSocket(this.socketURL, {
+        agent: agent,
+        headers: {
+          "User-Agent": this.ua,
+          connection: "Upgrade",
+          host: "proxy2.wynd.network:4444",
+          origin: "chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi",
+          "sec-websocket-extensions":
+            "permessage-deflate; client_max_window_bits",
+          "sec-websocket-version": "13",
+        },
+      });
+
+      this.socket.onopen = async () => {
+        await Helper.delay(
+          0,
+          this.worker,
+          "Connected to websocket, Websocket connection opened",
+          this
+        );
+        this.wssReconnectAttempts = 0;
+      };
+
+      this.socket.onmessage = async (message) => {
+        const data = JSON.parse(message.data);
+        const action = data.action;
+        await Helper.delay(
+          0,
+          this.worker,
+          `Received message on Worker ${this.worker}: ${JSON.stringify(data)}`,
+          this
+        );
+
+        switch (action) {
+          case "AUTH":
+            await this.handleAuth(data);
+            break;
+          case "PONG":
+            await Helper.delay(
+              0,
+              this.worker,
+              `Received ${action} Action`,
+              this
+            );
+            await this.sendPong(data);
+            break;
+          default:
+            await Helper.delay(
+              500,
+              this.worker,
+              `Received unknown action: ${action}`,
+              this
+            );
+            break;
+        }
+      };
+
+      this.socket.onerror = async (error) => {
+        await Helper.delay(
+          0,
+          this.worker,
+          `WebSocket error: ${JSON.stringify(error)}`,
+          this
+        );
+      };
+
+      this.socket.onclose = async (event) => {
+        if (!event.wasClean) {
+          await Helper.delay(
+            3000,
+            this.worker,
+            `WebSocket closed unexpectedly: ${event.code} - ${event.reason}`,
+            this
+          );
+        } else {
+          await Helper.delay(
+            3000,
+            this.worker,
+            `WebSocket Connection Closed Cleanly`,
+            this
+          );
+        }
+
+        await this.stopPing();
+        await this.reconnectWebSocket();
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async reconnectWebSocket() {
+    if (this.wssReconnectAttempts < this.maxwssReconnectAttempts) {
+      this.wssReconnectAttempts += 1;
+      const delay = Math.min(5000, 1000 * this.wssReconnectAttempts);
+      await Helper.delay(
+        delay,
+        this.worker,
+        `Attempting to reconnect (#${this.wssReconnectAttempts})...`,
+        this
+      );
+      await this.connectWebSocket();
+    } else {
+      const msg =
+        "Max reconnect attempts reached. Could not reconnect to WebSocket, Delaying for 10 Min Before next reconnect.";
+      await Helper.delay(60000 * 10, this.worker, msg, this);
+      await this.connectWebSocket();
+    }
   }
 
   async handleAuth(data) {
